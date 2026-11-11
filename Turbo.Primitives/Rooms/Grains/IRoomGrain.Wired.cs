@@ -142,6 +142,22 @@ public partial interface IRoomGrain
     public Task<bool> ClearWiredErrorLogsAsync(ActionContext ctx, CancellationToken ct);
 
     /// <summary>
+    /// Turns the room's wired trace on or off (each stack run, condition and effect recorded,
+    /// and a line per run in the room log). Requires wired modify permission; false without it.
+    /// </summary>
+    public Task<bool> SetWiredTraceAsync(ActionContext ctx, bool enabled, CancellationToken ct);
+
+    /// <summary>
+    /// The wired trace's steps after <paramref name="afterId"/>, oldest first, or null when the
+    /// caller may not read the room's wired.
+    /// </summary>
+    public Task<WiredTraceSnapshot?> GetWiredTraceAsync(
+        ActionContext ctx,
+        long afterId,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// One variable plus every furni or user currently holding a value for it, or null when the
     /// caller may not read the room wired or the variable is unknown.
     /// </summary>

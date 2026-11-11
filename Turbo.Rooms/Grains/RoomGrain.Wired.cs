@@ -401,6 +401,32 @@ public sealed partial class RoomGrain
         return true;
     }
 
+    public async Task<bool> SetWiredTraceAsync(
+        ActionContext ctx,
+        bool enabled,
+        CancellationToken ct
+    )
+    {
+        if (!await CanModifyWiredAsync(ctx, ct))
+            return false;
+
+        WiredSystem.SetTrace(enabled);
+
+        return true;
+    }
+
+    public async Task<WiredTraceSnapshot?> GetWiredTraceAsync(
+        ActionContext ctx,
+        long afterId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return WiredSystem.GetTrace(afterId);
+    }
+
     public async Task<WiredVariableInfoAndHoldersSnapshot?> GetWiredVariableHoldersAsync(
         ActionContext ctx,
         WiredVariableId variableId,

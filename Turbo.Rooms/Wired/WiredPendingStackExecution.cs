@@ -41,4 +41,7 @@ internal sealed class WiredPendingStackExecution
 
     /// <summary>The delayed calls already made when the stack fired; they only wait here.</summary>
     public HashSet<IWiredAction>? MadeCalls { get; set; }
+
+    /// <summary>The wired trace's id for the stack run that chose these actions; 0 when not traced.</summary>
+    public long TraceRunId { get; init; }
 }

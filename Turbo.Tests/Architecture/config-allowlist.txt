@@ -33,6 +33,7 @@ HeavyWindowMs = limit
 KillExecutionMs = limit
 KilledDurationMs = limit
 MaxRoomLogEntries = limit
+MaxTraceEntries = limit
 MaxFloorItems = limit
 MaxWallItems = limit
 PermanentFurniVariablesPer10000Cap = limit

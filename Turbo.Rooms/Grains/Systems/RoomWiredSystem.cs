@@ -641,6 +641,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        ctx.TraceRunId = BeginTraceRun();
+
         // A call back into a stack that already ran in this execution is dropped without an
         // error, as Habbo does (official client capture 2026-10-24, WIN63-202610201032: two
         // stacks calling each other ran once each per click, 2/2; a stack calling its own trigger
@@ -650,7 +652,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             && _execution is { } caller
             && caller.RanStackIds.Contains(ctx.Stack.StackId)
         )
+        {
+            TraceStackRun(ctx, WiredTraceOutcomeType.Dropped, "already ran in this execution");
+
             return;
+        }
 
         // Every run counts as a visit of its stack; a signal, a call or a change an effect of
         // this execution made is dropped past the limit. The run that started it counts too: a
@@ -661,12 +667,20 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             || _execution?.WasRaisedInIt(ctx.Event) == true;
 
         if (!TryVisitStack(ctx.Stack.StackId, now, reentry))
+        {
+            TraceStackRun(ctx, WiredTraceOutcomeType.Dropped, "visit limit");
+
             return;
+        }
 
         if (_execution is { } execution)
         {
             if (!ChargeExecution(execution, WiredConfig.ExecutionCostPerStack))
+            {
+                TraceStackRun(ctx, WiredTraceOutcomeType.Dropped, "usage cap");
+
                 return;
+            }
 
             execution.RanStackIds.Add(ctx.Stack.StackId);
         }
@@ -724,6 +738,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             ctx.Stack.StackId
         );
 
+        TraceStackRun(
+            ctx,
+            passed ? WiredTraceOutcomeType.Passed : WiredTraceOutcomeType.Failed,
+            pick.Actions.Count == 1 ? "1 effect chosen" : $"{pick.Actions.Count} effects chosen"
+        );
+
         if (pick.Actions.Count == 0)
             return;
 
@@ -777,11 +797,23 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         foreach (var addon in AddonsInRunOrder(ctx.Stack.Addons))
         {
             if (!await addon.MutatePolicyAsync(ctx, ct))
+            {
+                TraceStackRun(
+                    ctx,
+                    WiredTraceOutcomeType.Stopped,
+                    $"add-on {BoxName(addon)} refused"
+                );
+
                 return null;
+            }
         }
 
         if (!SpendExecutionBudget(ctx))
+        {
+            TraceStackRun(ctx, WiredTraceOutcomeType.Stopped, "execution budget");
+
             return null;
+        }
 
         // "Can Perform Movements" asks about moves that have not been made: it takes every effect
         // of the stack, whatever the random add-on would pick, in a random order whether or not
@@ -808,10 +840,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         // conditions are not asked and do not flash (official client capture, WIN63-202610171745:
         // the callee's effect ran with its condition false 5/5 and true 2/2 from a negative call,
         // and its passing condition never flashed). The negative box is the caller's else branch.
-        var passed = calledByStack || EvaluateConditions(ctx.Stack.Conditions, ctx);
+        var passed =
+            calledByStack
+            || EvaluateConditions(ctx.Stack.Conditions, ctx, c => EvaluateTraced(ctx, c));
 
         if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
+        {
+            TraceStackRun(ctx, WiredTraceOutcomeType.Stopped, "the trigger could not fire");
+
             return null;
+        }
 
         return passed;
     }
@@ -1153,6 +1191,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             NextActionIndex = 0,
             VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
             ContextValues = ctx.ContextValues,
+            TraceRunId = ctx.TraceRunId,
         };
 
         // Without a delay the actions run in the execution that chose them; with one, they are
@@ -1333,7 +1372,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     pending.WaitingActionIndex = i;
 
                     // Dropped at the delayed-events cap: the rest of the chain does not run.
-                    return !RescheduleStack(key, pending, now + delayMs);
+                    var held = RescheduleStack(key, pending, now + delayMs);
+
+                    TraceEffect(
+                        pending,
+                        action,
+                        held ? WiredTraceOutcomeType.Delayed : WiredTraceOutcomeType.Cancelled,
+                        held ? $"waits {delayMs} ms" : "delayed-events cap",
+                        now
+                    );
+
+                    return !held;
                 }
             }
 
@@ -1363,7 +1412,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     _execution is { } execution
                     && !ChargeExecution(execution, ActionCost(action, ctx))
                 )
+                {
+                    TraceEffect(pending, action, WiredTraceOutcomeType.Cancelled, "usage cap", now);
+
                     break;
+                }
 
                 // A delayed effect flashed when its stack fired.
                 if (action.GetDelayMs() <= 0)
@@ -1397,9 +1450,19 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 }
 
                 FlushWiredContext(ctx, heldMoves);
+
+                TraceEffect(
+                    pending,
+                    action,
+                    succeeded ? WiredTraceOutcomeType.Ran : WiredTraceOutcomeType.NoEffect,
+                    string.Empty,
+                    now
+                );
             }
             catch (Exception ex)
             {
+                TraceEffect(pending, action, WiredTraceOutcomeType.Threw, TraceDetail(ex), now);
+
                 Logger.LogWarning(
                     ex,
                     "Wired action {WiredType} {WiredCode} failed in room {RoomId}",
@@ -2016,13 +2079,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// </summary>
     private static bool EvaluateConditions(
         List<IWiredCondition> conditions,
-        WiredProcessingContext ctx
+        WiredProcessingContext ctx,
+        Func<IWiredCondition, bool> evaluate
     )
     {
         var rules = ctx.Policy.ConditionEvaluations;
 
         if (rules.Count == 0)
-            return conditions.TrueForAll(c => c.Evaluate(ctx));
+            return conditions.TrueForAll(c => evaluate(c));
 
         // A Condition Evaluation add-on with picked conditions combines only those; the others
         // keep the plain rule that each must match (wiredfurni.params.cond_eval.note: "You can
@@ -2033,7 +2097,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             {
                 if (
                     !rules.Exists(r => AppliesTo(condition, r.ConditionIds!))
-                    && !condition.Evaluate(ctx)
+                    && !evaluate(condition)
                 )
                     return false;
             }
@@ -2041,7 +2105,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         foreach (var rule in rules)
         {
-            if (!Holds(rule, conditions, ctx))
+            if (!Holds(rule, conditions, evaluate))
                 return false;
         }
 
@@ -2057,7 +2121,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private static bool Holds(
         WiredConditionEvaluation rule,
         List<IWiredCondition> conditions,
-        WiredProcessingContext ctx
+        Func<IWiredCondition, bool> evaluate
     )
     {
         if (rule.Mode == WiredConditionModeType.None)
@@ -2073,7 +2137,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             count++;
 
-            if (condition.Evaluate(ctx))
+            if (evaluate(condition))
                 matched++;
         }
 

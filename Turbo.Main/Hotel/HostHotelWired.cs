@@ -3,9 +3,11 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Wired;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Object.Logic.Plugins;
 
 namespace Turbo.Main.Hotel;
@@ -48,4 +50,34 @@ internal sealed class HostHotelWired(IGrainFactory grains, IHotelPlayers players
         where TEvent : IWiredEvent =>
         await players.CurrentRoomAsync(player, ct).ConfigureAwait(false) is { } room
         && await FireAsync(room, evt, player, ct).ConfigureAwait(false);
+
+    public async Task<bool> SetTraceAsync(
+        RoomId room,
+        PlayerId by,
+        bool enabled,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+        && await grains
+            .GetRoomGrain(room)
+            .SetWiredTraceAsync(ActionContext.CreateForPlayer(by, room), enabled, ct)
+            .ConfigureAwait(false);
+
+    public async Task<WiredTraceSnapshot?> GetTraceAsync(
+        RoomId room,
+        PlayerId by,
+        long afterId,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+            ? await grains
+                .GetRoomGrain(room)
+                .GetWiredTraceAsync(ActionContext.CreateForPlayer(by, room), afterId, ct)
+                .ConfigureAwait(false)
+            : null;
+
+    // A room no one is in is not loaded for a plugin: it has no trace to read or record.
+    private async Task<bool> IsPopulatedAsync(RoomId room, CancellationToken ct) =>
+        await grains.GetRoomDirectoryGrain().GetRoomPopulationAsync(room, ct).ConfigureAwait(false)
+        > 0;
 }

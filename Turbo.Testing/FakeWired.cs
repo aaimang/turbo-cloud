@@ -7,6 +7,7 @@ using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Testing;
 
@@ -55,6 +56,49 @@ public sealed class FakeWired : IHotelWired
         _hotel.Rooms.RoomOf(player) is { } room
             ? FireAsync(room, evt, player, ct)
             : Task.FromResult(false);
+
+    /// <summary>The rooms whose trace a plugin turned on, and who turned it on.</summary>
+    public IReadOnlyDictionary<RoomId, PlayerId> Tracing => _tracing;
+
+    private readonly Dictionary<RoomId, PlayerId> _tracing = [];
+
+    /// <summary>
+    /// Records that the trace is on or off; like the hotel's, only in a room someone is in. Who
+    /// may change a room's wired is not modelled.
+    /// </summary>
+    public Task<bool> SetTraceAsync(RoomId room, PlayerId by, bool enabled, CancellationToken ct)
+    {
+        if (!_hotel.Rooms.IsPopulated(room))
+            return Task.FromResult(false);
+
+        if (enabled)
+            _tracing[room] = by;
+        else
+            _tracing.Remove(room);
+
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// No stack runs here, so a traced room has no steps: the trace is on or off and empty; null
+    /// in a room no one is in.
+    /// </summary>
+    public Task<WiredTraceSnapshot?> GetTraceAsync(
+        RoomId room,
+        PlayerId by,
+        long afterId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<WiredTraceSnapshot?>(
+            _hotel.Rooms.IsPopulated(room)
+                ? new WiredTraceSnapshot
+                {
+                    Enabled = _tracing.ContainsKey(room),
+                    Entries = [],
+                    LastId = 0,
+                }
+                : null
+        );
 
     /// <summary>The last <typeparamref name="TEvent"/> fired in <paramref name="room"/>.</summary>
     public TEvent AssertFired<TEvent>(RoomId room, Func<TEvent, bool>? match = null)

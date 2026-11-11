@@ -128,6 +128,13 @@ public class WiredConfig
     public int MaxRoomLogEntries { get; init; } = 200;
 
     /// <summary>
+    /// Steps of the wired trace a room keeps while tracing is on (a plugin turns it on per room
+    /// through <c>IHotelWired.SetTraceAsync</c>); the oldest makes room for a new one. The trace
+    /// is held in memory only and dropped when the room unloads. 0 or less records nothing.
+    /// </summary>
+    public int MaxTraceEntries { get; init; } = 1000;
+
+    /// <summary>
     /// The room's floor and wall furni (all of them, not only wired boxes) the monitor measures,
     /// and past which no more wired boxes are placed: 4000 each in Habbo (official client capture
     /// of WiredRoomStats, WIN63-202610121624).

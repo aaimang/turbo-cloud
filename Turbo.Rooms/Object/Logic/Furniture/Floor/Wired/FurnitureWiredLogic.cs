@@ -62,6 +62,9 @@ public abstract partial class FurnitureWiredLogic(
 
     public bool IsImported => _importedFrom is not null;
 
+    /// <summary>The furni logic the box is, such as <c>wf_trg_click_furni</c>.</summary>
+    public string LogicName => _ctx.Definition.LogicName;
+
     private WiredDataSnapshot? _snapshot;
 
     public async Task LoadWiredAsync(CancellationToken ct)

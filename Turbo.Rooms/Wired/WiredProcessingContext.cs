@@ -26,4 +26,7 @@ public sealed class WiredProcessingContext(RoomGrain roomGrain)
     /// are put in order again. Null when the stack has no such condition.
     /// </summary>
     internal Dictionary<IWiredAction, WiredMovePlan>? MovePlans { get; set; }
+
+    /// <summary>The wired trace's id for this stack run; 0 when the room is not tracing (or a dry run).</summary>
+    internal long TraceRunId { get; set; }
 }

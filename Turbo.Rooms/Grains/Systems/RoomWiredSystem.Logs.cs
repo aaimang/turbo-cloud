@@ -42,6 +42,15 @@ public sealed partial class RoomWiredSystem
 
         Logger.Log(logLevel, "Wired log in room {RoomId}: {Message}", _roomGrain.RoomId, message);
 
+        AppendRoomLog(level, LOG_SOURCE_WIRED, message);
+    }
+
+    /// <summary>
+    /// Adds a line to the room's own log, dropping the oldest past
+    /// <c>WiredConfig.MaxRoomLogEntries</c>, and queues it to be stored.
+    /// </summary>
+    private void AppendRoomLog(WiredLogLevelType level, int source, string message)
+    {
         var cap = WiredConfig.MaxRoomLogEntries;
 
         if (cap <= 0)
@@ -55,7 +64,7 @@ public sealed partial class RoomWiredSystem
         {
             Id = _nextRoomLogId++,
             Level = (int)level,
-            Source = LOG_SOURCE_WIRED,
+            Source = source,
             Message = message,
             TimestampMs = now.ToUnixTimeMilliseconds(),
             TimestampText = FormatLogTime(now),
