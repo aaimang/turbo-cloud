@@ -15,6 +15,9 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Main.Hotel;
@@ -103,6 +106,90 @@ internal sealed class HostHotelRooms(
         [
             .. items.Select(x => new HotelRoomFurni(x.ObjectId.Value, x.DefinitionId, x.X, x.Y)),
         ];
+    }
+
+    /// <summary>Like a send, a room no one is in is not loaded for it.</summary>
+    public async Task<RoomLayoutSnapshot?> CaptureLayoutAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        await grains.GetRoomDirectoryGrain().GetRoomPopulationAsync(room, ct).ConfigureAwait(false)
+        > 0
+            ? await grains
+                .GetRoomGrain(room)
+                .CaptureFloorLayoutAsync(ActionContext.CreateForPlayer(by, room), ct)
+                .ConfigureAwait(false)
+            : null;
+
+    /// <summary>
+    /// Like a send, a room no one is in is not loaded for it. Picked-up furni go back through the
+    /// room service's placement, the one a client's place takes, so the hotel's placement
+    /// policies are asked; the room grain then sets every furni to its captured height, rotation
+    /// and state.
+    /// </summary>
+    public async Task<RoomLayoutRestore?> RestoreLayoutAsync(
+        RoomId room,
+        PlayerId by,
+        RoomLayoutSnapshot layout,
+        bool putBackPickedUp,
+        CancellationToken ct
+    )
+    {
+        if (
+            await grains
+                .GetRoomDirectoryGrain()
+                .GetRoomPopulationAsync(room, ct)
+                .ConfigureAwait(false) <= 0
+        )
+            return null;
+
+        var roomGrain = grains.GetRoomGrain(room);
+        var ctx = ActionContext.CreateForPlayer(by, room);
+
+        // Asked first: it is the permission check, and it says which furni are in the room.
+        if (
+            await roomGrain.CaptureFloorLayoutAsync(ctx, ct).ConfigureAwait(false) is not { } before
+        )
+            return null;
+
+        var putBack = 0;
+
+        if (putBackPickedUp)
+        {
+            var inRoom = before.Items.Select(x => x.ItemId).ToHashSet();
+            var missing = layout
+                .Items.Where(x => !inRoom.Contains(x.ItemId))
+                .OrderBy(x => x.Z)
+                .ThenBy(x => x.ItemId)
+                .ToList();
+
+            foreach (var item in missing)
+                await roomService
+                    .PlaceFloorItemInRoomAsync(
+                        ctx,
+                        RoomObjectId.Parse(item.ItemId),
+                        item.X,
+                        item.Y,
+                        (Rotation)item.Rotation,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+
+            if (missing.Count > 0)
+            {
+                var after = await roomGrain.CaptureFloorLayoutAsync(ctx, ct).ConfigureAwait(false);
+                var nowIn = after?.Items.Select(x => x.ItemId).ToHashSet() ?? [];
+
+                putBack = missing.Count(x => nowIn.Contains(x.ItemId));
+            }
+        }
+
+        var changed = await roomGrain
+            .RestoreFloorLayoutAsync(ctx, layout, ct)
+            .ConfigureAwait(false);
+
+        return changed is { } count ? new RoomLayoutRestore(count, putBack) : null;
     }
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>

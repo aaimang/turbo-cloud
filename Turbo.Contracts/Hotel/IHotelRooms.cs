@@ -7,6 +7,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Contracts.Hotel;
@@ -23,6 +24,12 @@ public sealed record HotelRoom(
 
 /// <summary>A floor furni standing in a room: its item id, its definition (<see cref="IHotelInventory.Furniture"/>) and its tile.</summary>
 public sealed record HotelRoomFurni(int ItemId, int DefinitionId, int X, int Y);
+
+/// <summary>
+/// What a <see cref="IHotelRooms.RestoreLayoutAsync"/> did: how many furni already in the room it
+/// moved, turned or switched back, and how many picked-up furni it placed again.
+/// </summary>
+public sealed record RoomLayoutRestore(int Changed, int PutBack);
 
 /// <summary>
 /// The hotel's rooms: what they are, who is in them, and speaking to them. A send to a room no
@@ -48,6 +55,33 @@ public interface IHotelRooms
     /// </summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<IReadOnlyList<HotelRoomFurni>> FurniAsync(RoomId room, CancellationToken ct);
+
+    /// <summary>
+    /// The room's floor furni as they stand now: each one's tile, height, rotation and state, as
+    /// <paramref name="by"/> may read them; null when no one is in the room or <paramref name="by"/>
+    /// may not change its wired. Keep it to put the room back with <see cref="RestoreLayoutAsync"/>.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<RoomLayoutSnapshot?> CaptureLayoutAsync(RoomId room, PlayerId by, CancellationToken ct);
+
+    /// <summary>
+    /// Puts the floor furni of <paramref name="layout"/> back where and how they were captured,
+    /// as <paramref name="by"/>, lowest first; null when no one is in the room or
+    /// <paramref name="by"/> may not change its wired. Furni added since are left where they are.
+    /// A furni picked up since is skipped, unless <paramref name="putBackPickedUp"/> and it is in
+    /// <paramref name="by"/>'s inventory: then it is placed as <paramref name="by"/> would place it
+    /// from the client (rights, the spot, the room's limits and the hotel's placement policies
+    /// decide; a refusal is told to them as a placement is), and set to its height, rotation and
+    /// state with the rest.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<RoomLayoutRestore?> RestoreLayoutAsync(
+        RoomId room,
+        PlayerId by,
+        RoomLayoutSnapshot layout,
+        bool putBackPickedUp,
+        CancellationToken ct
+    );
 
     /// <summary>A plugin message to everyone in the room; false when no one is in it.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]

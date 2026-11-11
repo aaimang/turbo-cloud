@@ -9,6 +9,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Testing;
@@ -148,6 +149,66 @@ public sealed class FakeRooms : IHotelRooms
         Task.FromResult<IReadOnlyList<HotelRoomFurni>>(
             Find(room) is { Players.Count: > 0 } r ? [.. r.Furni] : []
         );
+
+    /// <summary>
+    /// The room's furni by tile; a fake furni has no height, rotation or state, so those are 0.
+    /// Who may change a room's wired is not modelled: anyone in a room someone is in may.
+    /// </summary>
+    public Task<RoomLayoutSnapshot?> CaptureLayoutAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<RoomLayoutSnapshot?>(
+            Find(room) is { Players.Count: > 0 } r
+                ? new RoomLayoutSnapshot
+                {
+                    Items =
+                    [
+                        .. r.Furni.Select(x => new RoomLayoutItemSnapshot
+                        {
+                            ItemId = x.ItemId,
+                            X = x.X,
+                            Y = x.Y,
+                            Z = 0,
+                            Rotation = 0,
+                            State = 0,
+                        }),
+                    ],
+                }
+                : null
+        );
+
+    /// <summary>
+    /// Moves each furni still in the room back to its tile and answers how many moved. A fake room
+    /// keeps no inventories, so a picked-up furni is never put back (<c>PutBack</c> is 0).
+    /// </summary>
+    public Task<RoomLayoutRestore?> RestoreLayoutAsync(
+        RoomId room,
+        PlayerId by,
+        RoomLayoutSnapshot layout,
+        bool putBackPickedUp,
+        CancellationToken ct
+    )
+    {
+        if (Find(room) is not { Players.Count: > 0 } r)
+            return Task.FromResult<RoomLayoutRestore?>(null);
+
+        var moved = 0;
+
+        foreach (var saved in layout.Items)
+        {
+            var index = r.Furni.FindIndex(x => x.ItemId == saved.ItemId);
+
+            if (index < 0 || (r.Furni[index].X == saved.X && r.Furni[index].Y == saved.Y))
+                continue;
+
+            r.Furni[index] = r.Furni[index] with { X = saved.X, Y = saved.Y };
+            moved++;
+        }
+
+        return Task.FromResult<RoomLayoutRestore?>(new RoomLayoutRestore(moved, 0));
+    }
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
         Task.FromResult(Record(room, message));
