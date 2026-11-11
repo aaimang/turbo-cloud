@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -8,6 +10,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Plugins;
 
 namespace Turbo.Main.Hotel;
@@ -75,6 +78,57 @@ internal sealed class HostHotelWired(IGrainFactory grains, IHotelPlayers players
                 .GetWiredTraceAsync(ActionContext.CreateForPlayer(by, room), afterId, ct)
                 .ConfigureAwait(false)
             : null;
+
+    public async Task<ImmutableArray<WiredBoxSettingsSnapshot>?> ReadBoxesAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+            ? await grains
+                .GetRoomGrain(room)
+                .GetWiredBoxSettingsAsync(ActionContext.CreateForPlayer(by, room), ct)
+                .ConfigureAwait(false)
+            : null;
+
+    public async Task<WiredSaveResult?> SaveBoxAsync(
+        RoomId room,
+        PlayerId by,
+        WiredBoxSettingsSnapshot settings,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+            ? await grains
+                .GetRoomGrain(room)
+                .SaveWiredBoxSettingsAsync(ActionContext.CreateForPlayer(by, room), settings, ct)
+                .ConfigureAwait(false)
+            : null;
+
+    public async Task<ImmutableArray<HotelWiredVariable>?> ReadVariablesAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    )
+    {
+        if (!await IsPopulatedAsync(room, ct).ConfigureAwait(false))
+            return null;
+
+        var snapshot = await grains
+            .GetRoomGrain(room)
+            .GetWiredVariablesSnapshotAsync(ActionContext.CreateForPlayer(by, room), ct)
+            .ConfigureAwait(false);
+
+        return snapshot is null
+            ? null
+            :
+            [
+                .. snapshot.Variables.Select(x => new HotelWiredVariable(
+                    x.VariableId.ToString(),
+                    x.VariableName,
+                    x.VariableType
+                )),
+            ];
+    }
 
     // A room no one is in is not loaded for a plugin: it has no trace to read or record.
     private async Task<bool> IsPopulatedAsync(RoomId room, CancellationToken ct) =>

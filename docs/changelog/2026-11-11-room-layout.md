@@ -19,4 +19,5 @@ state (its flash) is not restored. The room grain gains `CaptureFloorLayoutAsync
 
 **Action**: none for existing plugins. A host or test double implementing `IHotelRooms` adds the
 two methods; `Turbo.Testing`'s `FakeRooms` captures its furni's tiles (height, rotation and state
-are 0) and moves them back, and puts back nothing (it keeps no inventories).
+are 0) and moves them back; with `putBackPickedUp` it takes a furni out of the player's
+`FakeInventory` and stands it on its tile.

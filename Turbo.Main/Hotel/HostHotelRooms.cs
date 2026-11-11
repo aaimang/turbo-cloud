@@ -18,6 +18,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Main.Hotel;
@@ -191,6 +192,82 @@ internal sealed class HostHotelRooms(
 
         return changed is { } count ? new RoomLayoutRestore(count, putBack) : null;
     }
+
+    /// <summary>
+    /// The navigator's create, then the room grain's floor plan save as the owner. The plan's door
+    /// is its first tile with a height, facing south-east; its walls and floor as the editor's
+    /// defaults leave them.
+    /// </summary>
+    public async Task<HotelRoomCreated?> CreateAsync(
+        PlayerId owner,
+        string name,
+        string baseModel,
+        int playersMax,
+        string? floorPlan,
+        CancellationToken ct
+    )
+    {
+        if (
+            await navigator
+                .CreateRoomAsync(
+                    owner,
+                    name,
+                    string.Empty,
+                    baseModel,
+                    0,
+                    playersMax,
+                    RoomTradeModeType.Disabled,
+                    ct
+                )
+                .ConfigureAwait(false)
+            is not { } room
+        )
+            return null;
+
+        if (string.IsNullOrWhiteSpace(floorPlan) || FirstTile(floorPlan) is not { } door)
+            return new HotelRoomCreated(room, false);
+
+        var removed = await grains
+            .GetRoomGrain(room)
+            .SaveFloorPlanAsync(
+                ActionContext.CreateForPlayer(owner, room),
+                floorPlan,
+                new FloorPlanPropertiesSnapshot
+                {
+                    DoorX = door.X,
+                    DoorY = door.Y,
+                    DoorRotation = DOOR_ROTATION,
+                    WallThickness = 0,
+                    FloorThickness = 0,
+                    FixedWallsHeight = -1,
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return new HotelRoomCreated(room, removed is not null);
+    }
+
+    // The client's default door direction (south-east), as a new room's door faces.
+    private const int DOOR_ROTATION = 2;
+
+    /// <summary>The first tile of a heightmap that is not a hole (<c>x</c>), row by row.</summary>
+    internal static (int X, int Y)? FirstTile(string floorPlan)
+    {
+        var rows = floorPlan.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+
+        for (var y = 0; y < rows.Length; y++)
+        {
+            var x = rows[y].IndexOfAny(TILE_HEIGHTS);
+
+            if (x >= 0)
+                return (x, y);
+        }
+
+        return null;
+    }
+
+    private static readonly char[] TILE_HEIGHTS = "0123456789abcdefghijklmnopqrstuvw".ToCharArray();
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
         SendAsync(room, PluginMessageComposer.Compose(message), ct);

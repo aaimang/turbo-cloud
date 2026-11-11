@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Players;
@@ -6,6 +7,9 @@ namespace Turbo.Contracts.Hotel;
 
 /// <summary>A furni definition: its id, its class name (<c>throne</c>) and whether it stands on the floor or hangs on a wall.</summary>
 public sealed record HotelFurniture(int DefinitionId, string Name, bool IsWallItem);
+
+/// <summary>A furni in a player's inventory: its item id and its definition.</summary>
+public sealed record HotelOwnedFurni(int ItemId, int DefinitionId);
 
 /// <summary>What a grant under a reference did.</summary>
 public enum GrantOutcome
@@ -64,6 +68,26 @@ public interface IHotelInventory
         string cause,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Makes one furni of the definition in the player's inventory, as
+    /// <see cref="GrantFurnitureAsync(PlayerId, int, string, CancellationToken)"/> does, and answers
+    /// its item id (to place it, or to point a wired box at it); null when nothing was made.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<int?> GrantFurnitureItemAsync(
+        PlayerId player,
+        int definitionId,
+        string cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The furni in the player's inventory that are theirs to keep, by item id: a rented or
+    /// expiring furni is left out. Furni standing in rooms are not in an inventory.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<IReadOnlyList<HotelOwnedFurni>> FurnitureOfAsync(PlayerId player, CancellationToken ct);
 
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct);

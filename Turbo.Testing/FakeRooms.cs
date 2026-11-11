@@ -46,6 +46,9 @@ public sealed class FakeRoom
     /// <summary>A doorbell or a password keeps visitors out: they cannot watch it either.</summary>
     public bool DoorClosed { get; set; }
 
+    /// <summary>The floor plan it was made with (<see cref="IHotelRooms.CreateAsync"/>), if any.</summary>
+    public string? FloorPlan { get; set; }
+
     /// <summary>Its floor furni, as <see cref="IHotelRooms.FurniAsync"/> answers them.</summary>
     public List<HotelRoomFurni> Furni { get; } = [];
 
@@ -180,8 +183,9 @@ public sealed class FakeRooms : IHotelRooms
         );
 
     /// <summary>
-    /// Moves each furni still in the room back to its tile and answers how many moved. A fake room
-    /// keeps no inventories, so a picked-up furni is never put back (<c>PutBack</c> is 0).
+    /// Moves each furni still in the room back to its tile and answers how many moved; with
+    /// <paramref name="putBackPickedUp"/>, a furni that is in <paramref name="by"/>'s fake
+    /// inventory is taken out of it and stood on its tile first, as placing it would.
     /// </summary>
     public Task<RoomLayoutRestore?> RestoreLayoutAsync(
         RoomId room,
@@ -193,6 +197,26 @@ public sealed class FakeRooms : IHotelRooms
     {
         if (Find(room) is not { Players.Count: > 0 } r)
             return Task.FromResult<RoomLayoutRestore?>(null);
+
+        var putBack = 0;
+
+        if (putBackPickedUp)
+        {
+            var owned = _hotel.Inventory.Owned(by);
+
+            foreach (var saved in layout.Items.OrderBy(x => x.Z))
+            {
+                if (
+                    r.Furni.Any(x => x.ItemId == saved.ItemId)
+                    || !owned.TryGetValue(saved.ItemId, out var definitionId)
+                    || !_hotel.Inventory.Take(by, saved.ItemId)
+                )
+                    continue;
+
+                r.Furni.Add(new HotelRoomFurni(saved.ItemId, definitionId, saved.X, saved.Y));
+                putBack++;
+            }
+        }
 
         var moved = 0;
 
@@ -207,7 +231,32 @@ public sealed class FakeRooms : IHotelRooms
             moved++;
         }
 
-        return Task.FromResult<RoomLayoutRestore?>(new RoomLayoutRestore(moved, 0));
+        return Task.FromResult<RoomLayoutRestore?>(new RoomLayoutRestore(moved, putBack));
+    }
+
+    /// <summary>
+    /// A new room for the owner, named as asked, with the floor plan kept as given (the fake checks
+    /// neither names, limits nor plans). Null for an owner the hotel does not have.
+    /// </summary>
+    public Task<HotelRoomCreated?> CreateAsync(
+        PlayerId owner,
+        string name,
+        string baseModel,
+        int playersMax,
+        string? floorPlan,
+        CancellationToken ct
+    )
+    {
+        if (!_hotel.IsPlayer(owner))
+            return Task.FromResult<HotelRoomCreated?>(null);
+
+        var room = Add(name, _hotel.Player(owner));
+
+        room.FloorPlan = floorPlan;
+
+        return Task.FromResult<HotelRoomCreated?>(
+            new HotelRoomCreated(room.Id, !string.IsNullOrWhiteSpace(floorPlan))
+        );
     }
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
@@ -427,7 +476,7 @@ public sealed class FakeRooms : IHotelRooms
 
     internal bool IsPopulated(RoomId room) => Find(room) is { Players.Count: > 0 };
 
-    private FakeRoom? Find(RoomId room) => _rooms.FirstOrDefault(x => x.Id == room);
+    internal FakeRoom? Find(RoomId room) => _rooms.FirstOrDefault(x => x.Id == room);
 
     private bool Record(RoomId room, object message)
     {

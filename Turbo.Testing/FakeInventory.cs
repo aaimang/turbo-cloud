@@ -21,7 +21,7 @@ public sealed class FakeInventory : IHotelInventory
 {
     private readonly FakeHotel _hotel;
     private readonly List<HotelFurniture> _definitions = [];
-    private readonly Dictionary<(PlayerId Player, int DefinitionId), int> _held = [];
+    private readonly List<(int ItemId, PlayerId Player, int DefinitionId)> _items = [];
     private readonly HashSet<(PlayerId, string)> _badges = [];
     private readonly List<FakeGrant> _grants = [];
     private readonly HashSet<(PlayerId, string)> _receipts = [];
@@ -56,15 +56,21 @@ public sealed class FakeInventory : IHotelInventory
         return furniture;
     }
 
+    /// <summary>The item id the next furni a player gets is given (1 to start).</summary>
+    public int NextItemId { get; set; } = 1;
+
     /// <summary>Gives the player furni as the test needs (not a grant).</summary>
-    public void Hold(PlayerId player, int definitionId, int count = 1) =>
-        _held[(player, definitionId)] = Held(player, definitionId) + count;
+    public void Hold(PlayerId player, int definitionId, int count = 1)
+    {
+        for (var i = 0; i < count; i++)
+            _items.Add((NextItemId++, player, definitionId));
+    }
 
     /// <summary>Gives the player a badge as the test needs (not a grant).</summary>
     public void HoldBadge(PlayerId player, string badgeCode) => _badges.Add((player, badgeCode));
 
     public int Held(PlayerId player, int definitionId) =>
-        _held.GetValueOrDefault((player, definitionId));
+        _items.Count(x => x.Player == player && x.DefinitionId == definitionId);
 
     public HotelFurniture? FindFurniture(string name) =>
         string.IsNullOrWhiteSpace(name)
@@ -118,6 +124,43 @@ public sealed class FakeInventory : IHotelInventory
         return Task.FromResult(GrantOutcome.Granted);
     }
 
+    public Task<int?> GrantFurnitureItemAsync(
+        PlayerId player,
+        int definitionId,
+        string cause,
+        CancellationToken ct
+    )
+    {
+        if (Furniture(definitionId) is null || !_hotel.IsPlayer(player) || _faults.Trip())
+            return Task.FromResult<int?>(null);
+
+        var itemId = NextItemId;
+
+        Hold(player, definitionId);
+        _grants.Add(new(player, definitionId, cause));
+
+        return Task.FromResult<int?>(itemId);
+    }
+
+    /// <summary>What the player holds, by item id; the fake has no rentals.</summary>
+    public Task<IReadOnlyList<HotelOwnedFurni>> FurnitureOfAsync(
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<IReadOnlyList<HotelOwnedFurni>>([
+            .. _items
+                .Where(x => x.Player == player)
+                .Select(x => new HotelOwnedFurni(x.ItemId, x.DefinitionId)),
+        ]);
+
+    /// <summary>What the player holds: item id to definition id.</summary>
+    internal Dictionary<int, int> Owned(PlayerId player) =>
+        _items.Where(x => x.Player == player).ToDictionary(x => x.ItemId, x => x.DefinitionId);
+
+    /// <summary>Takes a furni out of the player's inventory, as placing it in a room would.</summary>
+    public bool Take(PlayerId player, int itemId) =>
+        _items.RemoveAll(x => x.Player == player && x.ItemId == itemId) > 0;
+
     public Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
         Task.FromResult(_badges.Contains((player, badgeCode)));
 
@@ -131,11 +174,9 @@ public sealed class FakeInventory : IHotelInventory
 
     /// <summary>How many of the definition players hold, system accounts left out (the catalog's circulation).</summary>
     internal int Circulation(int definitionId) =>
-        _held
-            .Where(x =>
-                x.Key.DefinitionId == definitionId && !_hotel.Player(x.Key.Player).IsSystemAccount
-            )
-            .Sum(x => x.Value);
+        _items.Count(x =>
+            x.DefinitionId == definitionId && !_hotel.Player(x.Player).IsSystemAccount
+        );
 
     /// <summary>The player was granted <paramref name="count"/> of the definition in all.</summary>
     public void AssertGranted(PlayerId player, int definitionId, int count = 1)

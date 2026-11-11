@@ -1,11 +1,20 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Contracts.Hotel;
+
+/// <summary>
+/// A wired variable of a room: its id as boxes name it, its name, and its kind (made by a variable
+/// box, built in, derived by an add-on, or smart).
+/// </summary>
+public sealed record HotelWiredVariable(string Id, string Name, WiredVariableType Type);
 
 /// <summary>
 /// Plugin events for the plugin's own wired triggers (<see cref="WiredTrigger{TEvent}"/>,
@@ -51,6 +60,45 @@ public interface IHotelWired
         RoomId room,
         PlayerId by,
         long afterId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Every wired box of <paramref name="room"/> with its settings as stored, as
+    /// <paramref name="by"/> may read them; null when no one is in the room or
+    /// <paramref name="by"/> may not read its wired. What a room's wired is copied out as.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<ImmutableArray<WiredBoxSettingsSnapshot>?> ReadBoxesAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Saves <paramref name="settings"/> onto the box of <paramref name="room"/> it names, as
+    /// <paramref name="by"/> saving it from the box's editor: the same permission, the same checks,
+    /// the same refusals (<see cref="WiredSaveResult"/>), and the stack is rebuilt. Picks and
+    /// variable ids are the room's own: map them before saving. Null when no one is in the room.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<WiredSaveResult?> SaveBoxAsync(
+        RoomId room,
+        PlayerId by,
+        WiredBoxSettingsSnapshot settings,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The variables of <paramref name="room"/> as <paramref name="by"/> may read them: every one
+    /// the room knows, by the id boxes name it with. A variable a box was just saved to make is
+    /// listed from the room's next wired tick. Null when no one is in the room or
+    /// <paramref name="by"/> may not read its wired.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<ImmutableArray<HotelWiredVariable>?> ReadVariablesAsync(
+        RoomId room,
+        PlayerId by,
         CancellationToken ct
     );
 }

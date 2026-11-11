@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,10 @@ using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Testing;
 
@@ -97,6 +101,104 @@ public sealed class FakeWired : IHotelWired
                     Entries = [],
                     LastId = 0,
                 }
+                : null
+        );
+
+    private readonly Dictionary<RoomId, Dictionary<int, WiredBoxSettingsSnapshot>> _boxes = [];
+
+    /// <summary>Stands a wired box with these settings in the room, as a test's starting point.</summary>
+    public void AddBox(RoomId room, WiredBoxSettingsSnapshot box)
+    {
+        if (!_boxes.TryGetValue(room, out var boxes))
+            _boxes[room] = boxes = [];
+
+        boxes[box.ItemId] = box;
+    }
+
+    /// <summary>The boxes of a room as the fake holds them, by item id.</summary>
+    public IReadOnlyDictionary<int, WiredBoxSettingsSnapshot> BoxesOf(RoomId room) =>
+        _boxes.TryGetValue(room, out var boxes)
+            ? boxes
+            : new Dictionary<int, WiredBoxSettingsSnapshot>();
+
+    /// <summary>The boxes added or saved in the room; who may read them is not modelled.</summary>
+    public Task<ImmutableArray<WiredBoxSettingsSnapshot>?> ReadBoxesAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<ImmutableArray<WiredBoxSettingsSnapshot>?>(
+            _hotel.Rooms.IsPopulated(room) ? [.. BoxesOf(room).Values.OrderBy(x => x.ItemId)] : null
+        );
+
+    /// <summary>
+    /// Stores the settings over a box the room holds, keeping what it is (kind, code, logic); a
+    /// box it does not hold is the server error. No box's own checks run here: those are the
+    /// hotel's, tested in turbo-cloud.
+    /// </summary>
+    public Task<WiredSaveResult?> SaveBoxAsync(
+        RoomId room,
+        PlayerId by,
+        WiredBoxSettingsSnapshot settings,
+        CancellationToken ct
+    )
+    {
+        if (!_hotel.Rooms.IsPopulated(room))
+            return Task.FromResult<WiredSaveResult?>(null);
+
+        if (!_boxes.TryGetValue(room, out var boxes))
+            _boxes[room] = boxes = [];
+
+        if (!boxes.TryGetValue(settings.ItemId, out var box))
+        {
+            // A furni standing in the room whose definition is named as a wired box (wf_...) takes
+            // its first save as a box of that name; anything else is no box.
+            if (
+                _hotel.Rooms.Find(room)?.Furni.FirstOrDefault(x => x.ItemId == settings.ItemId)
+                    is not { } furni
+                || _hotel.Inventory.Furniture(furni.DefinitionId)?.Name is not { } name
+                || !name.StartsWith("wf_", StringComparison.Ordinal)
+            )
+                return Task.FromResult<WiredSaveResult?>(WiredSaveResult.ServerError);
+
+            box = settings with { LogicName = name };
+        }
+
+        boxes[settings.ItemId] = settings with
+        {
+            WiredType = box.WiredType,
+            WiredCode = box.WiredCode,
+            LogicName = box.LogicName,
+        };
+
+        return Task.FromResult<WiredSaveResult?>(WiredSaveResult.Saved);
+    }
+
+    /// <summary>
+    /// The variables the room's variable boxes (<c>wf_var_...</c>) make: each named by its text,
+    /// with the id a hotel gives a box's variable (<c>WiredVariableId.OfBox</c>). No built-in
+    /// variables are listed, and the room lists a new one at once.
+    /// </summary>
+    public Task<ImmutableArray<HotelWiredVariable>?> ReadVariablesAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<ImmutableArray<HotelWiredVariable>?>(
+            _hotel.Rooms.IsPopulated(room)
+                ?
+                [
+                    .. BoxesOf(room)
+                        .Values.Where(x =>
+                            x.LogicName.StartsWith("wf_var_", StringComparison.Ordinal)
+                            && x.StringParam.Length > 0
+                        )
+                        .Select(x => new HotelWiredVariable(
+                            WiredVariableId.OfBox(x.ItemId).ToString(),
+                            x.StringParam,
+                            WiredVariableType.Created
+                        )),
+                ]
                 : null
         );
 

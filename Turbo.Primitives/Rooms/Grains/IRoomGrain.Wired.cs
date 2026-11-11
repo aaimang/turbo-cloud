@@ -50,6 +50,25 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// Every wired box in the room with its settings as stored, or null when the caller may not
+    /// read the room's wired.
+    /// </summary>
+    public Task<ImmutableArray<WiredBoxSettingsSnapshot>?> GetWiredBoxSettingsAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Saves <paramref name="settings"/> onto the box it names as its editor's save would, every
+    /// check included; a box that is not in the room is the server error.
+    /// </summary>
+    public Task<WiredSaveResult> SaveWiredBoxSettingsAsync(
+        ActionContext ctx,
+        WiredBoxSettingsSnapshot settings,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Stores the current state of a wired box's picked furni as its snapshot (the editor's
     /// "apply furni to set conditions"). False when refused, or when the box keeps no snapshot.
     /// </summary>

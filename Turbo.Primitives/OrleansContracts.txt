@@ -582,6 +582,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   AAD986FC: GetTradePartiesAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.TradePartiesSnapshot?>
   C2E80E81: GetWallItemSnapshotByIdAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomWallItemSnapshot?>
   7C389042: GetWatchViewAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Watching.RoomWatchView>
+  1D00ADB6: GetWiredBoxSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Wired.WiredBoxSettingsSnapshot>?>
   DE845C53: GetWiredDataSnapshotByFloorItemIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredDataSnapshot?>
   BCB49AE7: GetWiredEntityPermanentVariablesAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.WiredEntityPermanentVariablesSnapshot?>
   DC1CF048: GetWiredErrorLogsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Wired.WiredErrorLogSnapshot>?>
@@ -658,6 +659,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   8300F4FE: SaveFloorPlanAsync(Turbo.Primitives.Action.ActionContext, string, Turbo.Primitives.Rooms.Snapshots.Mapping.FloorPlanPropertiesSnapshot?, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   B6DB48CF: SaveRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSaveResultSnapshot>
   8DC218E2: SaveRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSaveResultSnapshot>
+  27F12C71: SaveWiredBoxSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Wired.WiredBoxSettingsSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.WiredSaveResult>
   A6B181EC: SelectPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   B2E682BF: SendChatFromPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.RoomChatType, string, int, System.Threading.CancellationToken, int, string?) -> Task<bool>
   CBB42162: SendComposerToRoomAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task

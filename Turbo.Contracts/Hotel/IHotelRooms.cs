@@ -32,6 +32,12 @@ public sealed record HotelRoomFurni(int ItemId, int DefinitionId, int X, int Y);
 public sealed record RoomLayoutRestore(int Changed, int PutBack);
 
 /// <summary>
+/// A room <see cref="IHotelRooms.CreateAsync"/> made, and whether its floor plan was taken: false
+/// when the room kept its base model's because the plan was refused.
+/// </summary>
+public sealed record HotelRoomCreated(RoomId Room, bool FloorPlanSaved);
+
+/// <summary>
 /// The hotel's rooms: what they are, who is in them, and speaking to them. A send to a room no
 /// one is in does nothing and does not load the room for it.
 /// </summary>
@@ -80,6 +86,24 @@ public interface IHotelRooms
         PlayerId by,
         RoomLayoutSnapshot layout,
         bool putBackPickedUp,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Makes a room for <paramref name="owner"/> as the client's "create room" does: the name and
+    /// player cap checked, the owner's room limit kept, the name filtered. It starts from the room
+    /// model <paramref name="baseModel"/>; with a <paramref name="floorPlan"/> (the floor plan
+    /// editor's heightmap, rows split by <c>\r</c>), that plan is then saved over it as the owner
+    /// saving it in the editor, its door on the first tile of the plan. Null when the room was not
+    /// made. No one is sent into it.
+    /// </summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<HotelRoomCreated?> CreateAsync(
+        PlayerId owner,
+        string name,
+        string baseModel,
+        int playersMax,
+        string? floorPlan,
         CancellationToken ct
     );
 

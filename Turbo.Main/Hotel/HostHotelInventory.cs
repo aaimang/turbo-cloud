@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -63,6 +65,40 @@ internal sealed class HostHotelInventory(
             ? GrantOutcome.Granted
             : GrantOutcome.AlreadyGranted;
     }
+
+    public async Task<int?> GrantFurnitureItemAsync(
+        PlayerId player,
+        int definitionId,
+        string cause,
+        CancellationToken ct
+    ) =>
+        definitions.TryGetDefinition(definitionId) is null
+            ? null
+            : (
+                await grains
+                    .GetInventoryGrain(player)
+                    .GrantFurnitureAsync(definitionId, null, MovementCause.New(cause, player), ct)
+                    .ConfigureAwait(false)
+            )
+                ?.ItemId
+                .Value;
+
+    /// <summary>A furni with an expiry (a rental, a temporary furni) is not the player's to keep.</summary>
+    public async Task<IReadOnlyList<HotelOwnedFurni>> FurnitureOfAsync(
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        [
+            .. (
+                await grains
+                    .GetInventoryGrain(player)
+                    .GetAllItemSnapshotsAsync(ct)
+                    .ConfigureAwait(false)
+            )
+                .Where(x => x.SecondsToExpiration < 0)
+                .OrderBy(x => x.ItemId.Value)
+                .Select(x => new HotelOwnedFurni(x.ItemId.Value, x.Definition.Id)),
+        ];
 
     public Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
         grains.GetPlayerBadgeGrain(player).HasBadgeAsync(badgeCode, ct);

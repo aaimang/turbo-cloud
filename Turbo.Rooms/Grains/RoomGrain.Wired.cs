@@ -119,6 +119,26 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<ImmutableArray<WiredBoxSettingsSnapshot>?> GetWiredBoxSettingsAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetBoxSettingsAsync(ct);
+    }
+
+    public Task<WiredSaveResult> SaveWiredBoxSettingsAsync(
+        ActionContext ctx,
+        WiredBoxSettingsSnapshot settings,
+        CancellationToken ct
+    ) =>
+        WiredSystem.TryBuildUpdate(settings, out var update)
+            ? ApplyWiredUpdateAsync(ctx, RoomObjectId.Parse(settings.ItemId), update, ct)
+            : Task.FromResult(WiredSaveResult.ServerError);
+
     public async Task<bool> ApplyWiredSnapshotAsync(
         ActionContext ctx,
         RoomObjectId itemId,
