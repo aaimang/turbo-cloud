@@ -11,9 +11,6 @@ namespace Turbo.PacketHandlers.Avatar;
 public class GetWardrobeMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetWardrobeMessage>
 {
-    // The only state the client's wardrobe reply knows.
-    private const int WARDROBE_STATE_LOADED = 1;
-
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
@@ -28,7 +25,11 @@ public class GetWardrobeMessageHandler(IGrainFactory grainFactory)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new WardrobeMessageComposer { State = WARDROBE_STATE_LOADED, Outfits = outfits },
+                new WardrobeMessageComposer
+                {
+                    State = WardrobeMessageComposer.STATE_LOADED,
+                    Outfits = outfits,
+                },
                 ct
             )
             .ConfigureAwait(false);

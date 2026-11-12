@@ -166,8 +166,9 @@ public class SSOTicketMessageHandler(
             .GetClubGiftInfoAsync(ct);
         // The effects the player owns, with what is left of any that is running.
         var effectsTask = _grainFactory.GetPlayerEffectGrain(playerId).GetEffectsAsync(ct);
-        // The clothing they own, which the avatar editor offers them besides what everyone has.
-        var ownedClothingTask = clothing.GetOwnedAsync(playerId, ct);
+        // The clothing they own, which the avatar editor offers them besides what everyone has
+        // (all of it, for a player who may wear anything).
+        var ownedClothingTask = clothing.GetShownAsync(playerId, ct);
         // The clothing furni they have bound, which the client puts on without asking again.
         var boundClothingTask = clothing.GetBoundFurnitureNamesAsync(playerId, ct);
         // The new user flow's steps the player still has to do; the client draws the flow for them.

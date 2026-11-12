@@ -54,7 +54,7 @@ public class LoginAdmissionTests
     public LoginAdmissionTests()
     {
         _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(PLAYER);
-        _fakes.Handlers["GetOwnedAsync"] = _ =>
+        _fakes.Handlers["GetShownAsync"] = _ =>
             Task.FromResult(System.Collections.Immutable.ImmutableHashSet<int>.Empty);
         _fakes.Handlers["GetActiveBanAsync"] = _ => Task.FromResult(_ban);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(_admitted);

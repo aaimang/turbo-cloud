@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Hotel;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots.Wardrobe;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -29,6 +30,9 @@ public sealed class FakePlayer
     public string Figure { get; set; } = "hd-180-1.ch-210-66.lg-270-82.sh-290-80";
 
     public AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
+
+    /// <summary>The outfits in the player's wardrobe, by slot.</summary>
+    public Dictionary<int, OutfitDataSnapshot> Wardrobe { get; } = [];
 
     public string Motto { get; set; } = string.Empty;
 
@@ -360,4 +364,75 @@ public sealed class FakePlayers : IHotelPlayers
 
     private static HotelPlayer ToPlayer(FakePlayer x) =>
         new(x.Id, x.Name, x.Figure, x.Gender, x.Motto, x.CreatedAt, x.LastLoginAt);
+
+    /// <summary>
+    /// Dresses the player; without a gender, the one <see cref="FigureGenders"/> names for the
+    /// figure, else the player's own.
+    /// </summary>
+    public Task<AvatarGenderType?> SetFigureAsync(
+        PlayerId player,
+        string figure,
+        AvatarGenderType? gender,
+        CancellationToken ct
+    )
+    {
+        if (
+            _players.FirstOrDefault(x => x.Id == player) is not { } p
+            || string.IsNullOrWhiteSpace(figure)
+        )
+            return Task.FromResult<AvatarGenderType?>(null);
+
+        p.Figure = FiguresFitted.TryGetValue(figure, out var fitted) ? fitted : figure;
+        p.Gender = gender ?? (FigureGenders.TryGetValue(figure, out var g) ? g : p.Gender);
+
+        return Task.FromResult<AvatarGenderType?>(p.Gender);
+    }
+
+    /// <summary>
+    /// What the hotel's figure policy dresses a player in instead of a figure (pieces they may not
+    /// wear taken off), by figure; a figure not here is worn as given.
+    /// </summary>
+    public Dictionary<string, string> FiguresFitted { get; } = [];
+
+    /// <summary>The gender a figure set without one is taken to be, by figure (no figure data here).</summary>
+    public Dictionary<string, AvatarGenderType> FigureGenders { get; } = [];
+
+    /// <summary>How many outfits a wardrobe holds; 10, as a hotel's default.</summary>
+    public int WardrobeSlots { get; set; } = 10;
+
+    public Task<IReadOnlyList<OutfitDataSnapshot>> WardrobeAsync(
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<IReadOnlyList<OutfitDataSnapshot>>(
+            _players.FirstOrDefault(x => x.Id == player) is { } p
+                ? [.. p.Wardrobe.Values.OrderBy(x => x.SlotId)]
+                : []
+        );
+
+    public Task<bool> SaveOutfitAsync(
+        PlayerId player,
+        int slot,
+        string figure,
+        AvatarGenderType gender,
+        CancellationToken ct
+    )
+    {
+        if (
+            _players.FirstOrDefault(x => x.Id == player) is not { } p
+            || slot < 1
+            || slot > WardrobeSlots
+            || string.IsNullOrWhiteSpace(figure)
+        )
+            return Task.FromResult(false);
+
+        p.Wardrobe[slot] = new OutfitDataSnapshot
+        {
+            SlotId = slot,
+            Figure = figure,
+            Gender = gender,
+        };
+
+        return Task.FromResult(true);
+    }
 }

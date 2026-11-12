@@ -47,7 +47,7 @@ public class WelcomeMessageLoginTests
     public WelcomeMessageLoginTests()
     {
         _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(PLAYER);
-        _fakes.Handlers["GetOwnedAsync"] = _ =>
+        _fakes.Handlers["GetShownAsync"] = _ =>
             Task.FromResult(System.Collections.Immutable.ImmutableHashSet<int>.Empty);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(true);
         _fakes.Handlers["GetSettingsAsync"] = _ =>

@@ -7122,8 +7122,8 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Figure")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
+                        .HasMaxLength(279)
+                        .HasColumnType("varchar(279)")
                         .HasColumnName("figure");
 
                     b.Property<int>("Gender")

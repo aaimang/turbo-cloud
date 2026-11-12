@@ -568,7 +568,7 @@ public sealed class ReplaceableServiceTests : IAsyncDisposable
     private SSOTicketMessageHandler Login(ICampaignCalendarService calendars)
     {
         _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(PLAYER);
-        _fakes.Handlers["GetOwnedAsync"] = _ => Task.FromResult(ImmutableHashSet<int>.Empty);
+        _fakes.Handlers["GetShownAsync"] = _ => Task.FromResult(ImmutableHashSet<int>.Empty);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(true);
         _fakes.Handlers["GetLoginActionsAsync"] = _ => Task.FromResult(ImmutableArray<short>.Empty);
         _fakes.Handlers["GetSettingsAsync"] = _ =>

@@ -15,6 +15,13 @@ public interface IPlayerClothingService
 {
     public Task<ImmutableHashSet<int>> GetOwnedAsync(PlayerId playerId, CancellationToken ct);
 
+    /// <summary>
+    /// The sets the client is told the player owns: what they own and, for a player who may wear
+    /// any clothing (<c>figure.any</c>), every sold set, so the avatar editor keeps on what the
+    /// hotel lets them wear rather than taking it off.
+    /// </summary>
+    public Task<ImmutableHashSet<int>> GetShownAsync(PlayerId playerId, CancellationToken ct);
+
     /// <summary>Gives the player these sets; the number they didn't have yet.</summary>
     public Task<int> GrantAsync(PlayerId playerId, IEnumerable<int> setIds, CancellationToken ct);
 
@@ -42,6 +49,9 @@ public interface IPlayerClothingService
     /// <summary>Takes these sets from the player; the number they had.</summary>
     public Task<int> RevokeAsync(PlayerId playerId, IEnumerable<int> setIds, CancellationToken ct);
 
-    /// <summary>Tells the player, if online, what they own and the clothing furni they have bound.</summary>
+    /// <summary>
+    /// Tells the player, if online, what they own (<see cref="GetShownAsync"/>) and the clothing
+    /// furni they have bound.
+    /// </summary>
     public Task SendOwnedAsync(PlayerId playerId, CancellationToken ct);
 }

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots.Wardrobe;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -216,4 +217,42 @@ public interface IHotelPlayers
     /// <summary>A composer to the player's client; false when they are not online.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<bool> SendAsync(PlayerId player, IComposer composer, CancellationToken ct);
+
+    /// <summary>
+    /// Dresses the player in <paramref name="figure"/>, as their avatar editor would: what they may
+    /// not wear comes off or is swapped (the hotel's figure policy), it is saved, and the room they
+    /// are in sees it. Without a <paramref name="gender"/>, the figure's is the one most of its
+    /// gendered pieces are, else the player's own (a look copied from elsewhere has none). The
+    /// gender worn, or null when there is no such player.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<AvatarGenderType?> SetFigureAsync(
+        PlayerId player,
+        string figure,
+        AvatarGenderType? gender,
+        CancellationToken ct
+    );
+
+    /// <summary>How many outfits a player's wardrobe holds (slots 1 to this).</summary>
+    [HotelCall(HotelCallContext.Anywhere)]
+    int WardrobeSlots { get; }
+
+    /// <summary>The outfits saved in the player's wardrobe, by slot.</summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<IReadOnlyList<OutfitDataSnapshot>> WardrobeAsync(PlayerId player, CancellationToken ct);
+
+    /// <summary>
+    /// Saves an outfit into a slot of the player's wardrobe (1 to <see cref="WardrobeSlots"/>),
+    /// replacing what was there, as the wardrobe's own save does; false for a slot out of range
+    /// or an empty or too long figure. The player, if online, is sent their wardrobe, so the outfit
+    /// shows in it at once.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<bool> SaveOutfitAsync(
+        PlayerId player,
+        int slot,
+        string figure,
+        AvatarGenderType gender,
+        CancellationToken ct
+    );
 }

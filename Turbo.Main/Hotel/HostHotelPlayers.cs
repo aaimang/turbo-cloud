@@ -4,12 +4,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Security;
 using Turbo.Events;
+using Turbo.Players.Configuration;
+using Turbo.Primitives.Figures;
+using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -17,8 +21,10 @@ using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Snapshots.Wardrobe;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Main.Hotel;
 
@@ -31,8 +37,10 @@ internal sealed class HostHotelPlayers(
     IGrainFactory grains,
     ISessionGateway sessions,
     ICurrencyTypeProvider currencies,
+    IOptions<PlayerConfig> playerConfig,
     EventSystem? events = null,
-    IOwnerBootstrap? owner = null
+    IOwnerBootstrap? owner = null,
+    IFigureDataProvider? figureData = null
 ) : IHotelPlayers
 {
     public const int MAX_SEARCH = 50;
@@ -485,5 +493,78 @@ internal sealed class HostHotelPlayers(
         public int PlayerId { get; init; }
 
         public long Value { get; init; }
+    }
+
+    public async Task<AvatarGenderType?> SetFigureAsync(
+        PlayerId player,
+        string figure,
+        AvatarGenderType? gender,
+        CancellationToken ct
+    )
+    {
+        if (player <= 0 || string.IsNullOrWhiteSpace(figure))
+            return null;
+
+        if (await GetAsync(player, ct).ConfigureAwait(false) is not { } current)
+            return null;
+
+        var worn =
+            gender
+            ?? (
+                figureData is null
+                    ? null
+                    : FigureGender.Infer(
+                        await figureData.GetAsync(ct).ConfigureAwait(false),
+                        figure
+                    )
+            )
+            ?? current.Gender;
+
+        await grains.GetPlayerGrain(player).SetFigureAsync(figure, worn, ct).ConfigureAwait(false);
+
+        return worn;
+    }
+
+    public int WardrobeSlots => playerConfig.Value.WardrobeMaxSlots;
+
+    public async Task<IReadOnlyList<OutfitDataSnapshot>> WardrobeAsync(
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        player <= 0
+            ? []
+            : await grains.GetPlayerWardrobeGrain(player).GetOutfitsAsync(ct).ConfigureAwait(false);
+
+    public async Task<bool> SaveOutfitAsync(
+        PlayerId player,
+        int slot,
+        string figure,
+        AvatarGenderType gender,
+        CancellationToken ct
+    )
+    {
+        if (player <= 0 || string.IsNullOrWhiteSpace(figure))
+            return false;
+
+        var wardrobe = grains.GetPlayerWardrobeGrain(player);
+
+        if (!await wardrobe.SaveOutfitAsync(slot, figure, gender, ct).ConfigureAwait(false))
+            return false;
+
+        // The client asks for the wardrobe once and keeps it; a save it did not make is told to it,
+        // as the answer to that ask, so the outfit shows without logging in again.
+        await grains
+            .TrySendComposerToPlayerAsync(
+                player,
+                new WardrobeMessageComposer
+                {
+                    State = WardrobeMessageComposer.STATE_LOADED,
+                    Outfits = await wardrobe.GetOutfitsAsync(ct).ConfigureAwait(false),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return true;
     }
 }

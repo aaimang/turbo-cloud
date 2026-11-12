@@ -11,13 +11,15 @@ using Turbo.Primitives.Figures;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Clothing;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Players.Figures;
 
 /// <summary><see cref="IPlayerClothingService"/>, kept in <c>player_figure_sets</c>.</summary>
 internal sealed class PlayerClothingService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    IFigureDataProvider? figureData = null
 ) : IPlayerClothingService
 {
     public async Task<ImmutableHashSet<int>> GetOwnedAsync(PlayerId playerId, CancellationToken ct)
@@ -33,6 +35,27 @@ internal sealed class PlayerClothingService(
             .ConfigureAwait(false);
 
         return [.. owned];
+    }
+
+    public async Task<ImmutableHashSet<int>> GetShownAsync(PlayerId playerId, CancellationToken ct)
+    {
+        var owned = await GetOwnedAsync(playerId, ct).ConfigureAwait(false);
+
+        if (
+            figureData is null
+            || !await grainFactory
+                .HasPermissionAsync(playerId, PermissionNodes.Figure.ANY, ct)
+                .ConfigureAwait(false)
+        )
+            return owned;
+
+        var data = await figureData.GetAsync(ct).ConfigureAwait(false);
+
+        return owned.Union(
+            data.SetTypes.Values.SelectMany(x => x.Sets.Values)
+                .Where(x => x.Sellable)
+                .Select(x => x.Id)
+        );
     }
 
     public async Task<int> GrantAsync(
@@ -177,7 +200,7 @@ internal sealed class PlayerClothingService(
                 {
                     FigureSetIds =
                     [
-                        .. (await GetOwnedAsync(playerId, ct).ConfigureAwait(false)).Order(),
+                        .. (await GetShownAsync(playerId, ct).ConfigureAwait(false)).Order(),
                     ],
                     BoundFurnitureNames = await GetBoundFurnitureNamesAsync(playerId, ct)
                         .ConfigureAwait(false),
