@@ -28,6 +28,18 @@ internal static class FurnitureDrafts
         ["furniture_roomdimmer"] = "dimmer",
         ["furniture_habbowheel"] = "habbo_wheel",
         ["furniture_randomstate"] = "random_state",
+        // The wired trading chests: a double-click opens the chest's window.
+        ["furniture_furnichest"] = "wired_chest_furni",
+        ["furniture_coinschest"] = "wired_chest_coins",
+    };
+
+    // Items the client has only as plain furniture whose server logic is named apart from their
+    // class: the wired trading contracts (furniture_basic to the client).
+    private static readonly Dictionary<string, string> CLASS_LOGICS = new(StringComparer.Ordinal)
+    {
+        ["wf_contract_trade"] = "wired_contract_trade",
+        ["wf_contract_payment"] = "wired_contract_payment",
+        ["wf_contract_reward"] = "wired_contract_reward",
     };
 
     // Behaviours the client knows nothing of: a vending machine, a gate, a teleport and a roller
@@ -87,6 +99,13 @@ internal static class FurnitureDrafts
 
         if (!FurnitureRecords.IsDefaultLogic(logic))
             return logic;
+
+        if (
+            type == ProductType.Floor
+            && CLASS_LOGICS.TryGetValue(className, out var byClass)
+            && logics.Contains(byClass)
+        )
+            return byClass;
 
         if (clientLogic is { } client)
         {
