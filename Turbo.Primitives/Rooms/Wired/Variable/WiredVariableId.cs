@@ -66,11 +66,20 @@ public readonly record struct WiredVariableId(ulong Value) : IComparable<WiredVa
         TryParse(decimalString, out var id) ? id : throw new FormatException(decimalString);
 
     /// <summary>
-    /// For ids a client sent: a plain decimal number, or Habbo's "-N" / "~N"; anything else is
-    /// refused.
+    /// For ids a client sent: a plain decimal number, Habbo's "-N" / "~N", or a sub-variable
+    /// "sP-A" / "sP-A-I" (<see cref="TryParseSub"/>); anything else is refused.
     /// </summary>
     public static bool TryParse(string? decimalString, out WiredVariableId id)
     {
+        if (decimalString is ['s', ..])
+        {
+            id = TryParseSub(decimalString, out _, out var addonId, out var subIndex)
+                ? OfBox(addonId, subIndex)
+                : new(0);
+
+            return id.Value != 0;
+        }
+
         if (decimalString is ['-' or '~', .. var rest])
         {
             var isNumber = int.TryParse(
@@ -101,6 +110,66 @@ public readonly record struct WiredVariableId(ulong Value) : IComparable<WiredVa
     }
 
     public string ToHexString() => Value.ToString("X16", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// A sub-variable id as Habbo's files write it (G-Presets): <c>s</c>, the id of the variable it
+    /// is derived from, the furni id of the add-on deriving it, and which of the add-on's
+    /// sub-variables it is when not its first: "s123-456" or "s123-456-2". The id is the add-on's
+    /// <see cref="OfBox(int, int)"/>; the parent is only named.
+    /// </summary>
+    public static bool TryParseSub(
+        string? text,
+        out string parentId,
+        out int addonId,
+        out int subIndex
+    )
+    {
+        parentId = string.Empty;
+        addonId = 0;
+        subIndex = 0;
+
+        if (text is not ['s', .. var rest])
+            return false;
+
+        // The parent may itself be a built-in "-N": the add-on's furni id is after the last dash
+        // but one when there is an index, else after the last.
+        var parts = rest.Split('-');
+
+        if (parts.Length < 2)
+            return false;
+
+        static bool Number(string part, out int value) =>
+            int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+
+        var withIndex =
+            parts.Length >= 3
+            && Number(parts[^1], out var index)
+            && Number(parts[^2], out var furni)
+            && furni > 0
+            && (parts.Length > 3 || parts[0].Length > 0);
+
+        if (withIndex)
+        {
+            parentId = string.Join('-', parts[..^2]);
+            addonId = int.Parse(parts[^2], CultureInfo.InvariantCulture);
+            subIndex = int.Parse(parts[^1], CultureInfo.InvariantCulture);
+        }
+        else if (Number(parts[^1], out var only) && only > 0)
+        {
+            parentId = string.Join('-', parts[..^1]);
+            addonId = only;
+        }
+        else
+            return false;
+
+        return parentId.Length > 0 && parentId != "-";
+    }
+
+    /// <summary>Habbo's text for the sub-variable <paramref name="subIndex"/> of the add-on <paramref name="addonId"/>.</summary>
+    public static string SubText(string parentId, int addonId, int subIndex) =>
+        subIndex == 0
+            ? $"s{parentId}-{addonId.ToString(CultureInfo.InvariantCulture)}"
+            : $"s{parentId}-{addonId.ToString(CultureInfo.InvariantCulture)}-{subIndex.ToString(CultureInfo.InvariantCulture)}";
 
     public static WiredVariableId ParseHex(string hexString) =>
         new(ulong.Parse(hexString, NumberStyles.HexNumber, CultureInfo.InvariantCulture));

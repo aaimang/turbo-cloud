@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +16,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -115,6 +118,24 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     /// <summary>How high the top of a tile is: what a furni put there lands on. Zero outside the room.</summary>
     public Altitude GetTileHeight(int tileIdx) =>
         InBounds(tileIdx) ? State.TileHeights[tileIdx] : Altitude.Zero;
+
+    /// <summary>
+    /// The level of the room's floor on every tile, in hundredths, row by row; -1 where the room
+    /// has no floor.
+    /// </summary>
+    public ImmutableArray<int> GetFloorLevels() =>
+        State.Model is { } model
+            ?
+            [
+                .. model.BaseHeights.Select(
+                    (x, i) =>
+                        i < model.BaseFlags.Length
+                        && (model.BaseFlags[i] & RoomTileFlags.Disabled) != 0
+                            ? RoomLayoutSnapshot.NO_FLOOR
+                            : x.ToInt()
+                ),
+            ]
+            : [];
 
     /// <summary>The level of the room's floor on a tile, without furni. Zero outside the room.</summary>
     public int GetFloorLevel(int x, int y) =>

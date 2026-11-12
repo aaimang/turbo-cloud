@@ -3,7 +3,9 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Providers;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -119,6 +121,45 @@ public sealed class RoomFloorLayoutTests
         (await _room.Harness.Room.CaptureFloorLayoutAsync(visitor, Ct)).Should().BeNull();
         (await _room.Harness.Room.RestoreFloorLayoutAsync(visitor, layout, Ct)).Should().BeNull();
         Where(BLOCK).Should().Be((6, 6, 0, Rotation.North));
+    }
+
+    [Fact]
+    public async Task A_capture_carries_the_floor_s_level_on_each_tile()
+    {
+        var room = new WiredRoom(model: StepModel());
+        var layout = await room.Harness.Room.CaptureFloorLayoutAsync(System, Ct);
+
+        layout!.FloorWidth.Should().Be(3);
+        layout.FloorLevelAt(0, 0).Should().Be(0);
+        layout.FloorLevelAt(2, 0).Should().Be(100);
+        layout.FloorLevelAt(2, 1).Should().Be(200);
+        layout.FloorLevelAt(0, 1).Should().Be(RoomLayoutSnapshot.NO_FLOOR);
+        layout.FloorLevelAt(9, 9).Should().Be(RoomLayoutSnapshot.NO_FLOOR);
+        layout.LowestFloorLevel(1, 0, 2, 1).Should().Be(0);
+        layout.LowestFloorLevel(2, 0, 2, 1).Should().Be(100);
+        layout.LowestFloorLevel(0, 1, 0, 1).Should().Be(0);
+    }
+
+    // Three tiles wide, a step up to the east, no floor at the west of the second row: "001" over "x02".
+    private static RoomModelSnapshot StepModel()
+    {
+        var model = RoomModelProvider.CleanModelString("001\rx02");
+        var compiled = RoomModelProvider.CompileModelFromString(model);
+
+        return new RoomModelSnapshot
+        {
+            Id = 1,
+            Name = "step",
+            Model = model,
+            DoorX = 0,
+            DoorY = 0,
+            DoorRotation = Rotation.East,
+            Width = compiled.Width,
+            Height = compiled.Height,
+            Size = compiled.Width * compiled.Height,
+            BaseHeights = compiled.Heights,
+            BaseFlags = compiled.Flags,
+        };
     }
 
     private async Task<RoomLayoutSnapshot> CaptureAsync()

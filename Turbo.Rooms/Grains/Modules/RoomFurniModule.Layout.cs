@@ -16,7 +16,7 @@ namespace Turbo.Rooms.Grains.Modules;
 /// </summary>
 public sealed partial class RoomFurniModule
 {
-    /// <summary>Every floor furni's tile, height, rotation and state, by item id.</summary>
+    /// <summary>Every floor furni's tile, height, rotation and state, by item id, and the floor's levels.</summary>
     public RoomLayoutSnapshot CaptureFloorLayout() =>
         new()
         {
@@ -35,6 +35,8 @@ public sealed partial class RoomFurniModule
                         State = x.Logic.GetState(),
                     }),
             ],
+            FloorWidth = MapModule.Width,
+            FloorLevels = MapModule.GetFloorLevels(),
         };
 
     /// <summary>
