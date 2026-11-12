@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -25,6 +27,38 @@ public sealed partial class RoomWiredSystem
 
     // Until when a KILLED room runs no wired.
     private long _killedUntilMs;
+
+    // What the room's wired executions took since it loaded, for staff's usage overview.
+    private long _executions;
+    private long _executionMsTotal;
+    private long _executionMsMax;
+
+    /// <summary>Counts an execution that took <paramref name="tookMs"/> of server time.</summary>
+    private void CountExecution(long tookMs)
+    {
+        var ms = Math.Max(0, tookMs);
+
+        _executions++;
+        _executionMsTotal += ms;
+        _executionMsMax = Math.Max(_executionMsMax, ms);
+    }
+
+    /// <summary>
+    /// The room's wired load since it loaded, with <paramref name="stats"/> (the monitor's figures).
+    /// </summary>
+    public WiredRoomUsageSnapshot GetUsage(int roomId, WiredRoomStatsSnapshot stats) =>
+        new()
+        {
+            RoomId = roomId,
+            Stats = stats,
+            WiredBoxes = FurniModule.Items.Count(x => x.Logic is IWiredBox),
+            Stacks = _stacksById.Count,
+            Executions = _executions,
+            ExecutionMsTotal = _executionMsTotal,
+            ExecutionMsMax = _executionMsMax,
+            Errors = _errorCounts.Sum(),
+            TraceOn = _traceOn,
+        };
 
     /// <summary>
     /// The room's wired usage as the monitor shows it: what recent executions cost, decayed to

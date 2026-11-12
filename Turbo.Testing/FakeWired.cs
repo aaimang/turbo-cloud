@@ -202,6 +202,12 @@ public sealed class FakeWired : IHotelWired
                 : null
         );
 
+    /// <summary>What <see cref="UsageAsync"/> answers: set the rooms a test's staff page shows.</summary>
+    public List<WiredRoomUsageSnapshot> Usage { get; } = [];
+
+    public Task<ImmutableArray<WiredRoomUsageSnapshot>> UsageAsync(CancellationToken ct) =>
+        Task.FromResult<ImmutableArray<WiredRoomUsageSnapshot>>([.. Usage]);
+
     /// <summary>The last <typeparamref name="TEvent"/> fired in <paramref name="room"/>.</summary>
     public TEvent AssertFired<TEvent>(RoomId room, Func<TEvent, bool>? match = null)
         where TEvent : IWiredEvent =>

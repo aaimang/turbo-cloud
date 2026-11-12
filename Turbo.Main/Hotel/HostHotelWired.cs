@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -128,6 +129,36 @@ internal sealed class HostHotelWired(IGrainFactory grains, IHotelPlayers players
                     x.VariableType
                 )),
             ];
+    }
+
+    public async Task<ImmutableArray<WiredRoomUsageSnapshot>> UsageAsync(CancellationToken ct)
+    {
+        var rooms = await grains
+            .GetRoomDirectoryGrain()
+            .GetActiveRoomIdsAsync(ct)
+            .ConfigureAwait(false);
+        var usage = ImmutableArray.CreateBuilder<WiredRoomUsageSnapshot>(rooms.Length);
+
+        foreach (var room in rooms)
+        {
+            try
+            {
+                if (
+                    await grains
+                        .GetRoomGrain(room)
+                        .GetWiredUsageAsync(ActionContext.CreateForSystem(room), ct)
+                        .ConfigureAwait(false) is
+                    { } x
+                )
+                    usage.Add(x);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A room unloading as it is asked has nothing to show; the rest still do.
+            }
+        }
+
+        return usage.ToImmutable();
     }
 
     // A room no one is in is not loaded for a plugin: it has no trace to read or record.

@@ -319,6 +319,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             var tookMs = _wallClockMs() - execution.StartedAtWallMs;
 
             _busyMsInWindow += tookMs;
+            CountExecution(tookMs);
 
             KillIfOverrun(execution, tookMs);
         }

@@ -101,4 +101,12 @@ public interface IHotelWired
         PlayerId by,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The wired load of every loaded room: the monitor's figures, its wired boxes and stacks, and
+    /// its executions, their server time and errors since it loaded. For staff tools; a room that
+    /// cannot be read (unloading as it is asked) is left out.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<ImmutableArray<WiredRoomUsageSnapshot>> UsageAsync(CancellationToken ct);
 }

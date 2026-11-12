@@ -384,6 +384,19 @@ public sealed partial class RoomGrain
         };
     }
 
+    public async Task<WiredRoomUsageSnapshot?> GetWiredUsageAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (ctx.Origin != ActionOrigin.System)
+            return null;
+
+        var stats = await GetWiredRoomStatsAsync(ctx, ct);
+
+        return stats is null ? null : WiredSystem.GetUsage(_state.RoomId.Value, stats);
+    }
+
     public async Task<ImmutableArray<WiredErrorLogSnapshot>?> GetWiredErrorLogsAsync(
         ActionContext ctx,
         CancellationToken ct

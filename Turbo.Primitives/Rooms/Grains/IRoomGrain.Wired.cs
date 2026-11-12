@@ -134,6 +134,16 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// The room's wired load since it loaded (the monitor's figures, boxes, stacks, executions and
+    /// their server time, errors), for staff tools; null unless <paramref name="ctx"/> is the
+    /// system's.
+    /// </summary>
+    public Task<WiredRoomUsageSnapshot?> GetWiredUsageAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// The wired monitor's error list, or null when the caller may not read the room's wired.
     /// </summary>
     public Task<ImmutableArray<WiredErrorLogSnapshot>?> GetWiredErrorLogsAsync(
