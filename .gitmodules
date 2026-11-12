@@ -1,6 +1,7 @@
 [submodule "turbo-admin"]
 	path = turbo-admin
-	url = https://github.com/nitrodevco/turbo-admin.git
+	url = https://github.com/aaimang/turbo-admin.git
+	branch = wiredbench-panel
 [submodule "turbo-web"]
 	path = turbo-web
 	url = https://github.com/nitrodevco/turbo-web.git
