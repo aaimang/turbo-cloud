@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -42,6 +43,7 @@ public sealed partial class RoomWiredSystem
             Enabled = _traceOn,
             Entries = [.. _trace.Where(x => x.Id > afterId)],
             LastId = _nextTraceId - 1,
+            TimeZone = GetRoomTimeZone().Id,
         };
 
     /// <summary>A new run id for a stack run while tracing is on; 0 (not traced) otherwise.</summary>
@@ -177,6 +179,7 @@ public sealed partial class RoomWiredSystem
             _trace.RemoveFirst();
 
         var logic = box as FurnitureWiredLogic;
+        var utc = UtcNow;
 
         _trace.AddLast(
             new WiredTraceEntrySnapshot
@@ -191,6 +194,10 @@ public sealed partial class RoomWiredSystem
                 BoxCode = box?.WiredCode ?? -1,
                 Detail = detail,
                 AtMs = atMs,
+                AtUtcMs = utc.ToUnixTimeMilliseconds(),
+                AtText = TimeZoneInfo
+                    .ConvertTime(utc, GetRoomTimeZone())
+                    .ToString("HH:mm:ss", CultureInfo.InvariantCulture),
             }
         );
     }

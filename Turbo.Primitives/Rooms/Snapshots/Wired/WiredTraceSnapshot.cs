@@ -19,4 +19,8 @@ public sealed record WiredTraceSnapshot
     /// <summary>The id of the last step the room recorded; a reader asks for the steps after it next.</summary>
     [Id(2)]
     public required long LastId { get; init; }
+
+    /// <summary>The room's wired time zone, which each step's <c>AtText</c> is written in.</summary>
+    [Id(3)]
+    public string TimeZone { get; init; } = string.Empty;
 }

@@ -48,4 +48,12 @@ public sealed record WiredTraceEntrySnapshot
     /// <summary>Room time of the step, in milliseconds.</summary>
     [Id(9)]
     public required long AtMs { get; init; }
+
+    /// <summary>When the step happened, in Unix milliseconds.</summary>
+    [Id(10)]
+    public long AtUtcMs { get; init; }
+
+    /// <summary>The step's time of day in the room's wired time zone ("17:44:05"), as the room log writes times.</summary>
+    [Id(11)]
+    public string AtText { get; init; } = string.Empty;
 }

@@ -155,6 +155,29 @@ public sealed class WiredTraceTests
         effects.Select(x => x.RunId).Distinct().Should().ContainSingle();
     }
 
+    // The Trace window shows when each step happened, in the room's wired time zone.
+    [Fact]
+    public async Task A_step_carries_its_time_in_the_room_s_time_zone()
+    {
+        await BuildAsync(conditions: [], delay: 0);
+        await _room.Harness.Room.SetWiredTraceAsync(System, true, Ct);
+
+        await ClickAsync();
+
+        var trace = await TraceAsync();
+        var step = trace.Entries[0];
+        var expected = TimeZoneInfo
+            .ConvertTime(
+                DateTimeOffset.FromUnixTimeMilliseconds(step.AtUtcMs),
+                Wired.GetRoomTimeZone()
+            )
+            .ToString("HH:mm:ss", global::System.Globalization.CultureInfo.InvariantCulture);
+
+        trace.TimeZone.Should().Be(Wired.GetRoomTimeZone().Id);
+        step.AtUtcMs.Should().BePositive();
+        step.AtText.Should().Be(expected);
+    }
+
     [Fact]
     public async Task Turning_the_trace_off_stops_recording_and_keeps_what_was_recorded()
     {
