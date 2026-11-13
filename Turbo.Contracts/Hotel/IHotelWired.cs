@@ -78,12 +78,7 @@ public interface IHotelWired
     /// <paramref name="by"/> may not change its wired.
     /// </summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
-    Task<WiredPauseSnapshot?> StepAsync(
-        RoomId room,
-        PlayerId by,
-        int count,
-        CancellationToken ct
-    );
+    Task<WiredPauseSnapshot?> StepAsync(RoomId room, PlayerId by, int count, CancellationToken ct);
 
     /// <summary>
     /// Whether <paramref name="room"/> is paused and the effects it holds, as <paramref name="by"/>

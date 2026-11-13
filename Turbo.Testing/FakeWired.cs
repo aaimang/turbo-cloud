@@ -132,7 +132,11 @@ public sealed class FakeWired : IHotelWired
     ) => GetPauseAsync(room, by, ct);
 
     /// <summary>The recorded pause with no held effects; null in a room no one is in.</summary>
-    public Task<WiredPauseSnapshot?> GetPauseAsync(RoomId room, PlayerId by, CancellationToken ct) =>
+    public Task<WiredPauseSnapshot?> GetPauseAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
         Task.FromResult<WiredPauseSnapshot?>(
             _hotel.Rooms.IsPopulated(room)
                 ? new WiredPauseSnapshot { Paused = _paused.Contains(room), Held = [] }

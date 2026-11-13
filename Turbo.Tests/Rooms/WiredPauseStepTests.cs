@@ -117,8 +117,7 @@ public sealed class WiredPauseStepTests
         Ran.Should().Be(4);
     }
 
-    private int Ran =>
-        Wired.GetRoomLogs().Count(x => x.Source == RoomWiredSystem.LOG_SOURCE_WIRED);
+    private int Ran => Wired.GetRoomLogs().Count(x => x.Source == RoomWiredSystem.LOG_SOURCE_WIRED);
 
     private async Task<WiredPauseSnapshot> PauseAsync()
     {

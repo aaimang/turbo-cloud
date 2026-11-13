@@ -107,7 +107,16 @@ public sealed class WiredPauseVariableTests
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 3,
-                intParams: [(int)WiredVariableTargetType.User, (int)WiredVariableOperationType.Add, 0, 0, 1, -10, 0],
+                intParams:
+                [
+                    (int)WiredVariableTargetType.User,
+                    (int)WiredVariableOperationType.Add,
+                    0,
+                    0,
+                    1,
+                    -10,
+                    0,
+                ],
                 definitionSpecifics: [0],
                 variableIds: [id, "0"]
             )

@@ -460,7 +460,11 @@ public sealed partial class RoomGrain
         return WiredSystem.GetTrace(afterId);
     }
 
-    public async Task<bool> SetWiredPausedAsync(ActionContext ctx, bool paused, CancellationToken ct)
+    public async Task<bool> SetWiredPausedAsync(
+        ActionContext ctx,
+        bool paused,
+        CancellationToken ct
+    )
     {
         if (!await CanModifyWiredAsync(ctx, ct))
             return false;
