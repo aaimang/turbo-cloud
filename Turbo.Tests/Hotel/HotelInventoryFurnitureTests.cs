@@ -71,6 +71,48 @@ public sealed class HotelInventoryFurnitureTests
         _fakes.Log.Of(nameof(IInventoryGrain.GrantFurnitureAsync)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Deleting_all_furni_uses_up_what_the_player_keeps_and_leaves_rentals()
+    {
+        _fakes.Handlers[nameof(IInventoryGrain.GetAllItemSnapshotsAsync)] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([
+                Item(12, CHAIR),
+                Item(9, 31),
+                Item(10, CHAIR, secondsToExpiration: 3600),
+            ]);
+        _fakes.Handlers[nameof(IInventoryGrain.ConsumeAllFurnitureAsync)] = call =>
+        {
+            var ids = (ImmutableArray<RoomObjectId>)call.Args[0]!;
+
+            return Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([
+                .. ids.Select(x => Item(x.Value, CHAIR)),
+            ]);
+        };
+
+        (await Inventory().DeleteAllFurnitureAsync(PLAYER, "test.clear", Ct)).Should().Be(2);
+
+        var asked =
+            (ImmutableArray<RoomObjectId>)
+                _fakes.Log.Of(nameof(IInventoryGrain.ConsumeAllFurnitureAsync)).Single().Args[0]!;
+
+        asked.Select(x => x.Value).Should().BeEquivalentTo([9, 12]);
+    }
+
+    [Fact]
+    public async Task A_refused_batch_is_retried_item_by_item()
+    {
+        _fakes.Handlers[nameof(IInventoryGrain.GetAllItemSnapshotsAsync)] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([Item(9, 31), Item(12, CHAIR)]);
+        _fakes.Handlers[nameof(IInventoryGrain.ConsumeAllFurnitureAsync)] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([]);
+        _fakes.Handlers[nameof(IInventoryGrain.ConsumeFurnitureAsync)] = call =>
+            Task.FromResult<FurnitureItemSnapshot?>(
+                ((RoomObjectId)call.Args[0]!).Value == 9 ? Item(9, 31) : null
+            );
+
+        (await Inventory().DeleteAllFurnitureAsync(PLAYER, "test.clear", Ct)).Should().Be(1);
+    }
+
     private HostHotelInventory Inventory() =>
         new(_fakes.Create<IGrainFactory>(), _fakes.Create<IFurnitureDefinitionProvider>());
 

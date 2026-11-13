@@ -153,6 +153,14 @@ public sealed class FakeInventory : IHotelInventory
                 .Select(x => new HotelOwnedFurni(x.ItemId, x.DefinitionId)),
         ]);
 
+    /// <summary>Deletes everything the player holds; the fake has no rentals.</summary>
+    public Task<int> DeleteAllFurnitureAsync(PlayerId player, string cause, CancellationToken ct)
+    {
+        var count = _items.RemoveAll(x => x.Player == player);
+
+        return Task.FromResult(count);
+    }
+
     /// <summary>What the player holds: item id to definition id.</summary>
     internal Dictionary<int, int> Owned(PlayerId player) =>
         _items.Where(x => x.Player == player).ToDictionary(x => x.ItemId, x => x.DefinitionId);

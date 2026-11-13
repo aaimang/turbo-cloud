@@ -100,6 +100,47 @@ internal sealed class HostHotelInventory(
                 .Select(x => new HotelOwnedFurni(x.ItemId.Value, x.Definition.Id)),
         ];
 
+    /// <summary>How many furni are used up in one transaction; a refused batch is retried item by item.</summary>
+    private const int DELETE_BATCH = 100;
+
+    public async Task<int> DeleteAllFurnitureAsync(
+        PlayerId player,
+        string cause,
+        CancellationToken ct
+    )
+    {
+        var inventory = grains.GetInventoryGrain(player);
+        var ids = (await inventory.GetAllItemSnapshotsAsync(ct).ConfigureAwait(false))
+            .Where(x => x.SecondsToExpiration < 0)
+            .Select(x => x.ItemId)
+            .ToList();
+        var movement = MovementCause.New(cause, player);
+        var deleted = 0;
+
+        foreach (var batch in ids.Chunk(DELETE_BATCH))
+        {
+            var taken = await inventory
+                .ConsumeAllFurnitureAsync([.. batch], movement, ct)
+                .ConfigureAwait(false);
+
+            if (!taken.IsEmpty)
+            {
+                deleted += taken.Length;
+
+                continue;
+            }
+
+            foreach (var id in batch)
+                if (
+                    await inventory.ConsumeFurnitureAsync(id, movement, ct).ConfigureAwait(false)
+                    is not null
+                )
+                    deleted++;
+        }
+
+        return deleted;
+    }
+
     public Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
         grains.GetPlayerBadgeGrain(player).HasBadgeAsync(badgeCode, ct);
 

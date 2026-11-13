@@ -89,6 +89,16 @@ public interface IHotelInventory
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<IReadOnlyList<HotelOwnedFurni>> FurnitureOfAsync(PlayerId player, CancellationToken ct);
 
+    /// <summary>
+    /// Deletes every furni in the player's inventory that is theirs to keep (a rented or expiring
+    /// furni stays, as in <see cref="FurnitureOfAsync"/>): the rows are gone for good, recorded in
+    /// the movement log under <paramref name="cause"/>, a code of the plugin's, and the player's
+    /// client is told each has left its list. Furni standing in rooms or held by a trade are not
+    /// touched. Answers how many were deleted.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<int> DeleteAllFurnitureAsync(PlayerId player, string cause, CancellationToken ct);
+
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct);
 
