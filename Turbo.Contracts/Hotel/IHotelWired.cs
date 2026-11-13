@@ -64,6 +64,35 @@ public interface IHotelWired
     );
 
     /// <summary>
+    /// Pauses or resumes the wired of <paramref name="room"/>, as <paramref name="by"/>, who must
+    /// be allowed to change the room's wired. Paused, triggers still fire and conditions are asked,
+    /// but each effect waits to be stepped; resuming runs what waits, in order. False when no one
+    /// is in the room or <paramref name="by"/> may not.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<bool> SetPausedAsync(RoomId room, PlayerId by, bool paused, CancellationToken ct);
+
+    /// <summary>
+    /// Runs the next <paramref name="count"/> held effects of a paused room, one at a time, as
+    /// <paramref name="by"/>; the pause as it is after. Null when no one is in the room or
+    /// <paramref name="by"/> may not change its wired.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<WiredPauseSnapshot?> StepAsync(
+        RoomId room,
+        PlayerId by,
+        int count,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Whether <paramref name="room"/> is paused and the effects it holds, as <paramref name="by"/>
+    /// may read them; null when no one is in the room or <paramref name="by"/> may not read its wired.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<WiredPauseSnapshot?> GetPauseAsync(RoomId room, PlayerId by, CancellationToken ct);
+
+    /// <summary>
     /// Every wired box of <paramref name="room"/> with its settings as stored, as
     /// <paramref name="by"/> may read them; null when no one is in the room or
     /// <paramref name="by"/> may not read its wired. What a room's wired is copied out as.

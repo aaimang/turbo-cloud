@@ -586,6 +586,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   DE845C53: GetWiredDataSnapshotByFloorItemIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredDataSnapshot?>
   BCB49AE7: GetWiredEntityPermanentVariablesAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.WiredEntityPermanentVariablesSnapshot?>
   DC1CF048: GetWiredErrorLogsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Wired.WiredErrorLogSnapshot>?>
+  BCDA72C6: GetWiredPauseAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredPauseSnapshot?>
   2612538C: GetWiredRoomLogsAsync(Turbo.Primitives.Action.ActionContext, int, int, int, int, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredRoomLogPageSnapshot?>
   3CF7F880: GetWiredRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredRoomSettingsSnapshot?>
   600BAFAC: GetWiredRoomStatsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredRoomStatsSnapshot?>
@@ -686,6 +687,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2B5728FD: SetStaffPickAsync(bool, System.Threading.CancellationToken) -> Task
   CAA22F56: SetTagsAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   8146B8DB: SetTradingStatusAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
+  DE4BA131: SetWiredPausedAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>
   4A1ECFD8: SetWiredRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, string, System.Threading.CancellationToken) -> Task<bool>
   9976BE42: SetWiredTraceAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>
   DC7A14B3: ShowHabbiconAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
@@ -694,6 +696,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   B70528FC: StaffPickupPetAsync(int, System.Threading.CancellationToken) -> Task<bool>
   31D10C99: StaffUpdateBotAsync(int, Turbo.Primitives.Bots.Snapshots.BotStaffEditSnapshot, System.Threading.CancellationToken) -> Task<bool>
   1E8B799E: StaffUpdatePetAsync(int, Turbo.Primitives.Pets.Snapshots.PetStaffEditSnapshot, System.Threading.CancellationToken) -> Task<bool>
+  4695E1F0: StepWiredAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredPauseSnapshot?>
   7D730882: SubscribeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableStateSnapshot?>
   F1B6BD3E: SynchronizeSharedWiredAddonsAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   02CF499A: TogglePetBreedingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>

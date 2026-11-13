@@ -29,4 +29,7 @@ public enum WiredTraceOutcomeType
 
     /// <summary>An effect did not run: the execution was cancelled at the usage cap, or its delay hit the delayed-events cap.</summary>
     Cancelled = 8,
+
+    /// <summary>The room is paused: the effect waits to be stepped.</summary>
+    Held = 9,
 }

@@ -187,6 +187,26 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// Pauses or resumes the room's wired. Paused, triggers still fire and conditions are asked, but
+    /// each effect is held until stepped. Resuming runs what is held, in order. Requires wired
+    /// modify permission; false without it.
+    /// </summary>
+    public Task<bool> SetWiredPausedAsync(ActionContext ctx, bool paused, CancellationToken ct);
+
+    /// <summary>
+    /// Runs the next <paramref name="count"/> held effects of a paused room, one at a time, and
+    /// returns what is still held. Requires wired modify permission; null without it.
+    /// </summary>
+    public Task<WiredPauseSnapshot?> StepWiredAsync(
+        ActionContext ctx,
+        int count,
+        CancellationToken ct
+    );
+
+    /// <summary>Whether the room is paused and what it holds; null without wired read permission.</summary>
+    public Task<WiredPauseSnapshot?> GetWiredPauseAsync(ActionContext ctx, CancellationToken ct);
+
+    /// <summary>
     /// One variable plus every furni or user currently holding a value for it, or null when the
     /// caller may not read the room wired or the variable is unknown.
     /// </summary>

@@ -104,6 +104,41 @@ public sealed class FakeWired : IHotelWired
                 : null
         );
 
+    private readonly HashSet<RoomId> _paused = [];
+
+    /// <summary>Whether a test paused this room's wired.</summary>
+    public bool IsPaused(RoomId room) => _paused.Contains(room);
+
+    /// <summary>Records the pause; true while someone is in the room.</summary>
+    public Task<bool> SetPausedAsync(RoomId room, PlayerId by, bool paused, CancellationToken ct)
+    {
+        if (!_hotel.Rooms.IsPopulated(room))
+            return Task.FromResult(false);
+
+        if (paused)
+            _paused.Add(room);
+        else
+            _paused.Remove(room);
+
+        return Task.FromResult(true);
+    }
+
+    /// <summary>Steps nothing: this fake holds no effects.</summary>
+    public Task<WiredPauseSnapshot?> StepAsync(
+        RoomId room,
+        PlayerId by,
+        int count,
+        CancellationToken ct
+    ) => GetPauseAsync(room, by, ct);
+
+    /// <summary>The recorded pause with no held effects; null in a room no one is in.</summary>
+    public Task<WiredPauseSnapshot?> GetPauseAsync(RoomId room, PlayerId by, CancellationToken ct) =>
+        Task.FromResult<WiredPauseSnapshot?>(
+            _hotel.Rooms.IsPopulated(room)
+                ? new WiredPauseSnapshot { Paused = _paused.Contains(room), Held = [] }
+                : null
+        );
+
     private readonly Dictionary<RoomId, Dictionary<int, WiredBoxSettingsSnapshot>> _boxes = [];
 
     /// <summary>Stands a wired box with these settings in the room, as a test's starting point.</summary>

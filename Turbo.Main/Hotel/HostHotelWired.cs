@@ -80,6 +80,43 @@ internal sealed class HostHotelWired(IGrainFactory grains, IHotelPlayers players
                 .ConfigureAwait(false)
             : null;
 
+    public async Task<bool> SetPausedAsync(
+        RoomId room,
+        PlayerId by,
+        bool paused,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+        && await grains
+            .GetRoomGrain(room)
+            .SetWiredPausedAsync(ActionContext.CreateForPlayer(by, room), paused, ct)
+            .ConfigureAwait(false);
+
+    public async Task<WiredPauseSnapshot?> StepAsync(
+        RoomId room,
+        PlayerId by,
+        int count,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+            ? await grains
+                .GetRoomGrain(room)
+                .StepWiredAsync(ActionContext.CreateForPlayer(by, room), count, ct)
+                .ConfigureAwait(false)
+            : null;
+
+    public async Task<WiredPauseSnapshot?> GetPauseAsync(
+        RoomId room,
+        PlayerId by,
+        CancellationToken ct
+    ) =>
+        await IsPopulatedAsync(room, ct).ConfigureAwait(false)
+            ? await grains
+                .GetRoomGrain(room)
+                .GetWiredPauseAsync(ActionContext.CreateForPlayer(by, room), ct)
+                .ConfigureAwait(false)
+            : null;
+
     public async Task<ImmutableArray<WiredBoxSettingsSnapshot>?> ReadBoxesAsync(
         RoomId room,
         PlayerId by,

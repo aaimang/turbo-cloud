@@ -135,6 +135,12 @@ public class WiredConfig
     public int MaxTraceEntries { get; init; } = 1000;
 
     /// <summary>
+    /// The most effect chains a paused room holds for stepping (<c>IHotelWired.SetPausedAsync</c>);
+    /// one past it is cancelled and traced as such. 0 or less holds none.
+    /// </summary>
+    public int MaxHeldChains { get; init; } = 200;
+
+    /// <summary>
     /// The room's floor and wall furni (all of them, not only wired boxes) the monitor measures,
     /// and past which no more wired boxes are placed: 4000 each in Habbo (official client capture
     /// of WiredRoomStats, WIN63-202610121624).

@@ -1405,6 +1405,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     continue;
                 }
 
+                // A paused room holds the chain here, to be stepped; what ran before this effect
+                // is sent as a finished chain's is.
+                pending.NextActionIndex = i;
+
+                if (!GateEffect(key, pending, now))
+                {
+                    SendHeldMoves(heldMoves);
+                    await FlushVariableChangesAsync(pending, ct);
+
+                    return false;
+                }
+
                 var ctx = ExecutionContextFor(pending, ct);
 
                 // An action the room's usage cannot pay for cancels the execution, and with it the
