@@ -10,15 +10,17 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<string>(
-                name: "figure",
-                table: "player_outfits",
-                type: "varchar(279)",
-                maxLength: 279,
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "varchar(100)",
-                oldMaxLength: 100)
+            migrationBuilder
+                .AlterColumn<string>(
+                    name: "figure",
+                    table: "player_outfits",
+                    type: "varchar(279)",
+                    maxLength: 279,
+                    nullable: false,
+                    oldClrType: typeof(string),
+                    oldType: "varchar(100)",
+                    oldMaxLength: 100
+                )
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
         }
@@ -26,15 +28,17 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<string>(
-                name: "figure",
-                table: "player_outfits",
-                type: "varchar(100)",
-                maxLength: 100,
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "varchar(279)",
-                oldMaxLength: 279)
+            migrationBuilder
+                .AlterColumn<string>(
+                    name: "figure",
+                    table: "player_outfits",
+                    type: "varchar(100)",
+                    maxLength: 100,
+                    nullable: false,
+                    oldClrType: typeof(string),
+                    oldType: "varchar(279)",
+                    oldMaxLength: 279
+                )
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
         }
